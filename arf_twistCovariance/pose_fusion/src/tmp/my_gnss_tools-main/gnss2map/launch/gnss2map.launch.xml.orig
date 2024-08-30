@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <arg name="param_file" default="$(find-pkg-share gnss2map)/config/map_info.param.yaml"/>
+  <arg name="input_topic_fix" default="/fix"/>
+  <arg name="output_topic_pose" default="/fix_pose"/>
+
+  <node pkg="gnss2map" exec="gnss2map" name="gnss2map" output="screen">
+    <remap from="/fix" to="$(var input_topic_fix)"/>
+    <remap from="/gnss2map" to="$(var output_topic_pose)"/>
+    <param from="$(var param_file)"/>
+  </node>
+</launch>

@@ -1,0 +1,46 @@
+#include "gnss2map/gnss2map.hpp"
+
+
+Gnss_to_map::Gnss_to_map()
+: Node("gnss_to_map")
+{
+    map_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/gnss2map", 1);
+    fix_sub_ = create_subscription<sensor_msgs::msg::NavSatFix>(
+    "/fix", rclcpp::QoS{1}, std::bind(&Gnss_to_map::navsat_callback, this, std::placeholders::_1));
+
+    target_frame = this->declare_parameter<std::string>("target_frame", "map");
+    gnss_frame = this->declare_parameter<std::string>("gnss_frame", "gnss");
+    
+    tf_buffer_ =
+    std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ =
+    std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+}
+
+  void Gnss_to_map::navsat_callback(const sensor_msgs::msg::NavSatFix::ConstSharedPtr navsat_msg) {
+    geographic_msgs::msg::GeoPoint gps_msg;
+
+    gps_msg.latitude = navsat_msg->latitude;
+    gps_msg.longitude = navsat_msg->longitude;
+    gps_msg.altitude = navsat_msg->altitude;
+
+    geodesy::UTMPoint utm;
+    geodesy::fromMsg(gps_msg, utm);
+
+    gnss2map_msg.header = navsat_msg->header;
+    gnss2map_msg.header.frame_id = target_frame;
+
+    gnss2map_msg.pose.position.x = utm.easting;
+    gnss2map_msg.pose.position.y = utm.northing;
+    gnss2map_msg.pose.position.z = utm.altitude;
+
+    map_pose_pub_->publish(gnss2map_msg);
+}
+
+int main(int argc, char * argv[])
+{
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<Gnss_to_map>());
+  rclcpp::shutdown();
+  return 0;
+}
